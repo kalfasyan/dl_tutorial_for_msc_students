@@ -43,7 +43,7 @@ def train_generator(X_train, y_train, batch_size, nb_classes=10, img_dim=150):
             for i in range(len(train_batch)): 
                 data = cv2.imread(train_batch[i])
                 data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
-                data = cv2.resize(data, (img_dim, img_dim)) 
+                data = resize_image(data, size=(img_dim, img_dim))
                 data = img_to_array(data) / 255.0
 
                 x_batch.append(data)
@@ -69,7 +69,7 @@ def valid_generator(X_val, y_val, batch_size, nb_classes=9, img_dim=150):
             for i in range(len(train_batch)): 
                 data = cv2.imread(train_batch[i])
                 data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
-                data = cv2.resize(data, (img_dim, img_dim))
+                data = resize_image(data, size=(img_dim, img_dim))
                 data = img_to_array(data) / 255.0
 
                 x_batch.append(data)
@@ -80,3 +80,40 @@ def valid_generator(X_val, y_val, batch_size, nb_classes=9, img_dim=150):
             y_batch = to_categorical(y_batch, nb_classes)
 
             yield x_batch, y_batch
+
+def resize_image(img, size=(300,300)):
+    # source: https://stackoverflow.com/a/49208362/3410400
+
+    h, w = img.shape[:2]
+    c = img.shape[2] if len(img.shape)>2 else 1
+
+    if h == w: 
+        return cv2.resize(img, size, cv2.INTER_AREA)
+
+    dif = h if h > w else w
+
+    interpolation = cv2.INTER_AREA if dif > (size[0]+size[1])//2 else cv2.INTER_CUBIC
+
+    x_pos = (dif - w)//2
+    y_pos = (dif - h)//2
+
+    if len(img.shape) == 2:
+        mask = np.zeros((dif, dif), dtype=img.dtype)
+        mask[y_pos:y_pos+h, x_pos:x_pos+w] = img[:h, :w]
+    else:
+        mask = np.zeros((dif, dif, c), dtype=img.dtype)
+        mask[y_pos:y_pos+h, x_pos:x_pos+w, :] = img[:h, :w, :]
+
+    return cv2.resize(mask, size, interpolation)
+
+def get_labelencoder_mapping(le):
+    '''
+    Return a dict mapping labels to their integer values
+    from an SKlearn LabelEncoder
+    le = a fitted SKlearn LabelEncoder
+    '''
+    res = {}
+    for cl in le.classes_:
+        res.update({cl:le.transform([cl])[0]})
+
+    return res
